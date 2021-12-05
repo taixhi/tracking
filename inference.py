@@ -490,7 +490,7 @@ class JointParticleFilter:
         for ghostIdx in range(self.numGhosts):
             if noisyDistances[ghostIdx] == None: # If ghost is in jail, put the specific ghost in jail for all particles
                 for i in range(self.numParticles):
-                    newSamples[i] = self.getParticleWithGhostInJail(self.particles[i], ghostIdx)
+                    self.particles[i] = self.getParticleWithGhostInJail(self.particles[i], ghostIdx)
             else:
                 for i in range(self.numParticles):
                     trueDistance = util.manhattanDistance(self.particles[i][ghostIdx], pacmanPosition)
@@ -561,12 +561,17 @@ class JointParticleFilter:
               agents are always the same.
         """
         newParticles = []
+        belief = util.Counter()
         for oldParticle in self.particles:
             newParticle = list(oldParticle) # A list of ghost positions
             # now loop through and update each entry in newParticle...
 
             "*** YOUR CODE HERE ***"
-
+            for i in range(self.numGhosts):
+                newPosDist = getPositionDistributionForGhost(
+                   setGhostPositions(gameState, oldParticle), i, self.ghostAgents[i]
+                )
+                newParticle[i] = util.sample(newPosDist)
             "*** END YOUR CODE HERE ***"
             newParticles.append(tuple(newParticle))
         self.particles = newParticles
@@ -577,6 +582,20 @@ class JointParticleFilter:
             beliefs[poss] += 1
         beliefs.normalize()
         return beliefs
+    def getObservationDistribution(noisyDistance):
+        """
+        Returns the factor P( noisyDistance | TrueDistances ), the likelihood of the provided noisyDistance
+        conditioned upon all the possible true distances that could have generated it.
+        """
+        global self.observationDistributions
+        if noisyDistance == None:
+            return util.Counter()
+        if noisyDistance not in self.observationDistributions:
+            distribution = util.Counter()
+            for error , prob in zip(SONAR_NOISE_VALUES, SONAR_NOISE_PROBS):
+                distribution[max(1, noisyDistance - error)] += prob
+            self.observationDistributions[noisyDistance] = distribution
+        return self.observationDistributions[noisyDistance]
 # One JointInference module is shared globally across instances of MarginalInference
 jointInference = JointParticleFilter()
 
